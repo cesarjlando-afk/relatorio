@@ -2,28 +2,125 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Ronda Preventiva</title>
-<meta name="theme-color" content="#007bff">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Checklist">
-<link rel="manifest" href="manifest.json"> 
-  <link rel="icon" href="icon-192.png">
+  <meta name="theme-color" content="#007bff">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Checklist">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png" type="image/png">
   <style>
-    body { font-family: Arial; padding: 20px; }
-    #login, #checklistPage { display: none; }
-    #login.visible, #checklistPage.visible { display: block; }
-    .item { margin-bottom: 30px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
-    .controles, .avaliacao, .descricaoExtra { display: none; margin-top: 10px; }
-    .item.checked .controles { display: block; }
-    canvas { width: 100%; max-width: 300px; margin-top: 10px; display: none; }
-    input[type="text"], input[type="password"] { width: 100%; padding: 8px; margin-top: 5px; }
-    button { margin-top: 10px; padding: 10px 20px; font-size: 16px; }
-    .hora-captura { margin-top: 5px; font-size: 14px; color: #555; }
-    #dataHoraAtual { font-size: 16px; margin-bottom: 20px; font-weight: bold; }
-    #blocoCamera { margin-top: 20px; display: none; text-align: center; }
-    #videoUnico { max-height: 250px; margin-bottom: 10px; }
-  </style>
+  body {
+    font-family: Arial, sans-serif;
+    padding: 5vw;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    background-color: #f9f9f9;
+    margin: 0;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 95vw;
+    margin: auto;
+    padding: 5vw;
+  }
+
+  #login, #checklistPage {
+    display: none;
+  }
+
+  #login.visible, #checklistPage.visible {
+    display: block;
+  }
+
+  .item {
+    margin-bottom: 6vw;
+    border: 1px solid #ccc;
+    padding: 4vw;
+    border-radius: 5px;
+    background-color: #fff;
+  }
+
+  .controles, .avaliacao, .descricaoExtra {
+    display: none;
+    margin-top: 10px;
+  }
+
+  .item.checked .controles {
+    display: block;
+  }
+
+  canvas {
+    width: 100%;
+    max-width: 300px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  input[type="text"],
+  input[type="password"] {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+
+  button {
+    margin-top: 10px;
+    padding: 12px 24px;
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+  }
+
+  .hora-captura {
+    margin-top: 5px;
+    font-size: 0.9rem;
+    color: #555;
+  }
+
+  #dataHoraAtual {
+    font-size: clamp(1rem, 2.5vw, 1.2rem);
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+
+  #blocoCamera {
+    margin-top: 20px;
+    display: none;
+    text-align: center;
+  }
+
+  #videoUnico {
+    max-height: 250px;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+
+  @media (max-width: 480px) {
+    body {
+      font-size: 1.1rem;
+    }
+
+    .container {
+      padding: 6vw;
+    }
+
+    button {
+      font-size: 1.1rem;
+    }
+  }
+</style>
 </head>
 <body>
 <div id="login" class="visible">
@@ -452,6 +549,19 @@ function capturarFotoUnica() {
 function validarDescricao(input) {
   const btnSalvar = input.nextElementSibling;
   btnSalvar.disabled = input.value.trim() === "";
+}
+
+function salvarNaoConforme(btn) {
+  const item = btn.closest('.item');
+  const extraInput = item.querySelector('.descricaoExtraInput');
+  const descricaoInput = item.querySelector('input[type="text"]');
+  descricaoInput.value = extraInput.value.trim();
+
+  salvarEstado();
+  item.classList.remove('checked');
+  item.querySelector('.descricaoExtra').style.display = "none";
+  item.querySelector('.controles').style.display = "block";
+  descricaoInput.style.display = "block";
 }
 
 function salvarNaoConforme(btn) {
