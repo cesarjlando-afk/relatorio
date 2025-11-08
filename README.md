@@ -1,2 +1,0 @@
-# checklist2
-# rondaprev
