@@ -617,12 +617,18 @@ function verificarChecklistCompleto() {
   const btnPDF = document.getElementById("btnPDF");
   btnPDF.disabled = !(todosVerificados && todasFotosCapturadas);
 }
+// 🔹 Mantém o botão SEMPRE ativo
+function verificarChecklistCompleto() {
+  const btnPDF = document.getElementById("btnPDF");
+  btnPDF.disabled = false; // sempre habilitado
+}
 
+// 🔹 Só gera PDF se todos os itens estiverem verificados
 function verificarAntesDeGerar() {
   const itens = document.querySelectorAll('.item');
   let todosValidos = true;
 
-  itens.forEach((item, index) => {
+  itens.forEach((item) => {
     const checkbox = item.querySelector('.check');
     const descricao = item.querySelector('.controles input[type="text"]');
     const canvas = item.querySelector('canvas');
@@ -633,92 +639,23 @@ function verificarAntesDeGerar() {
 
     if (!marcado || !texto || !temFoto) {
       todosValidos = false;
-      item.style.border = "2px solid red"; // destaque visual
+      item.style.border = "2px solid red";
     } else {
       item.style.border = "1px solid #ccc";
     }
   });
 
   if (!todosValidos) {
-    alert("⚠️ Todos os itens devem estar verificados, com descrição preenchida e foto capturada antes de gerar o relatório.");
+    alert("⚠️ Para gerar o PDF, todos os itens precisam estar verificados, com descrição e foto.");
     return;
   }
 
+  // Se passou na validação, chama a função para gerar o PDF
   gerarPDF();
 }
 
-function gerarPDF() {
-  const itens = document.querySelectorAll('.item');
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
 
-  const pageWidth = doc.internal.pageSize.getWidth();
-  let y = 10;
 
-  // 🔷 Cabeçário centralizado
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  const titulo1 = 'Birmann 29 (Antonio Alves F. Guedes) - B29';
-  const textWidth1 = doc.getTextWidth(titulo1);
-  doc.text(titulo1, (pageWidth - textWidth1) / 2, y);
-  y += 8;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(12);
-  const titulo2 = 'Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP';
-  const textWidth2 = doc.getTextWidth(titulo2);
-  doc.text(titulo2, (pageWidth - textWidth2) / 2, y);
-  y += 10;
-
-  // 🔷 Título do checklist
-  doc.setFontSize(14);
-  const titulo3 = `Vistoria realizada por :  ${usuarioAtual}`;
-  const textWidth3 = doc.getTextWidth(titulo3);
-  doc.text(titulo3, (pageWidth - textWidth3) / 2, y);
-  y += 10;
-
-  // 🔷 Loop dos itens
-  for (let i = 0; i < itens.length; i++) {
-    const item = itens[i];
-    const titulo = item.querySelector('label').innerText.trim();
-    const descricao = item.querySelector('input[type="text"]').value || "Sem descrição";
-    const hora = item.querySelector('.hora-captura')?.innerText || "Sem hora";
-    const canvas = item.querySelector('canvas');
-
-    doc.setFontSize(12);
-    doc.text(`${i + 1}. ${titulo}`, 10, y); y += 6;
-    doc.text(`Descrição: ${descricao}`, 10, y); y += 6;
-    doc.text(`${hora}`, 10, y); y += 6;
-
-    if (canvas && canvas.width > 0) {
-      const imgData = canvas.toDataURL("image/png");
-
-      if (y + 50 > 270) {
-        doc.addPage();
-        y = 10;
-      }
-
-      doc.addImage(imgData, "PNG", 10, y, 60, 45);
-      y += 50;
-    }
-
-    y += 10;
-    if (y > 270) {
-      doc.addPage();
-      y = 10;
-    }
-  }
-
-  // 🔷 Rodapé com data de envio
-  const horaEnvio = new Date().toLocaleString();
-  doc.text(`Enviado em: ${horaEnvio}`, 10, y);
-
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const nomeArquivo = `Checklist_${usuarioAtual}_${timestamp}.pdf`;
-
-  doc.save(nomeArquivo);
-  alert("✅ PDF gerado com sucesso!");
-}
 function iniciarRonda() {
   if (confirm("Tem certeza que deseja iniciar uma nova ronda?.")) {
     localStorage.removeItem(`checklist_${usuarioAtual}`);
