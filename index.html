@@ -696,9 +696,16 @@ function gerarPDF() {
     const nome = item.querySelector('label').innerText;
     const descricao = item.querySelector('input[type="text"]').value.trim();
     const canvas = item.querySelector('canvas');
+    const hora = item.querySelector('.hora-captura')?.innerText || ""; // 🔹 PEGAR HORA
 
     doc.text(`${i + 1}. ${nome}`, 10, y);
     y += 6;
+
+    if (hora) {
+      doc.text(`${hora}`, 10, y); // 🔹 MOSTRAR HORA NO PDF
+      y += 6;
+    }
+
     doc.text(`Descrição: ${descricao || '---'}`, 10, y);
     y += 6;
 
@@ -715,19 +722,16 @@ function gerarPDF() {
     }
   });
 
-  // 🔹 Nome único do PDF
   const nomeArquivo = `Ronda_${usuarioAtual}_${new Date().toLocaleDateString()}_${new Date().getTime()}.pdf`;
   doc.save(nomeArquivo);
-
-  // 🔹 Mensagem de sucesso
   alert(`✅ PDF salvo com sucesso como "${nomeArquivo}"!`);
 
-  // 🔹 Limpa fotos salvas no localStorage após gerar o PDF
   document.querySelectorAll('.item').forEach(item => {
     const id = item.getAttribute("data-id");
     localStorage.removeItem(`foto_${id}`);
   });
 }
+
 
 
 function iniciarRonda() {
