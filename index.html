@@ -152,8 +152,9 @@
 </head>
 <body>
   <header class="cabecario">
-  <h1>Birmann 29 <span>(Antonio Alves F. Guedes) - B29</span></h1>
-  <p>Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP</p>
+  <h1>Birmann 29<span></span></h1>
+  <p>(Antonio Alves F. Guedes) - B29
+Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP</p>
 </header>
 <div id="login" class="visible">
   <h2>Login de Acesso</h2>
@@ -169,8 +170,7 @@
   <h2>Ronda Preventiva Bravos B29</h2>
   <div id="dataHoraAtual"></div>
   <button onclick="iniciarRonda()">🚀 Iniciar Ronda</button>
-
-  <div id="checklist">
+<div id="checklist">
     <!-- ✅ Itens 1 a 5 -->
     <div class="item" data-id="1">
       <label><input type="checkbox" class="check" onchange="toggleItem(this)"> Casa de Máquinas Zona Alta</label>
@@ -479,7 +479,6 @@
     <button disabled onclick="salvarNaoConforme(this)">💾 Salvar</button>
   </div>
 </div>
-
 <!-- Bloco único de câmera -->
 <div id="blocoCamera">
   <video id="videoUnico" autoplay playsinline></video><br>
@@ -500,8 +499,8 @@ if (localStorage.getItem("rondaIniciada") === "true") {
 
 
 const usuariosPermitidos = {
-  "Cesar Lando": "25242",
-  "Cristiano Andrade": "12345"
+  "Alessandro Caiana": "02476",
+  "Cesar Lando": "25242"
 };
 
 function verificarLogin() {
@@ -687,40 +686,76 @@ function verificarAntesDeGerar() {
 
 function gerarPDF() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = new jsPDF("p", "mm", "a4");
 
-  doc.setFontSize(14);
-  doc.text("Relatório de Ronda Preventiva", 10, 10);
-  doc.setFontSize(10);
-  doc.text(`Responsável: ${usuarioAtual}`, 10, 20);
-  doc.text(`Data: ${new Date().toLocaleString()}`, 10, 26);
+  // 🔹 CABEÇÁRIO CENTRALIZADO NO PDF
+  doc.setFontSize(18);
+  doc.text("Hotel Unique", 105, 15, { align: "center" });
 
-  let y = 40;
+  doc.setFontSize(12);
+  doc.text("AV. Brigadeiro Luis Antonio, 4700 - Jardim Paulista, São Paulo - SP",
+           105, 22, { align: "center" });
+
+  doc.line(10, 28, 200, 28); // linha separadora
+
+  // 🔹 TÍTULO DO RELATÓRIO
+  doc.setFontSize(16);
+  doc.text("Relatório de Ronda Preventiva", 105, 38, { align: "center" });
+
+  doc.setFontSize(11);
+  doc.text(`Responsável: ${usuarioAtual}`, 10, 50);
+  doc.text(`Data: ${new Date().toLocaleString()}`, 10, 56);
+
+  let y = 70;
+
   document.querySelectorAll('.item').forEach((item, i) => {
-    const nome = item.querySelector('label').innerText;
+    const nome = item.querySelector('label').innerText.trim();
     const descricao = item.querySelector('input[type="text"]').value.trim();
     const canvas = item.querySelector('canvas');
-    const hora = item.querySelector('.hora-captura')?.innerText || ""; // 🔹 PEGAR HORA
+    const hora = item.querySelector('.hora-captura')?.innerText || "";
 
+    doc.setFontSize(12);
     doc.text(`${i + 1}. ${nome}`, 10, y);
     y += 6;
 
     if (hora) {
-      doc.text(`${hora}`, 10, y); // 🔹 MOSTRAR HORA NO PDF
+      doc.setFontSize(10);
+      doc.text(hora, 10, y);
       y += 6;
     }
 
-    doc.text(`Descrição: ${descricao || '---'}`, 10, y);
-    y += 6;
+    doc.setFontSize(11);
+    doc.text(`Descrição: ${descricao}`, 10, y);
+    y += 8;
 
+    // 🔹 INSERIR IMAGEM SEM CORTAR, AJUSTE AUTOMÁTICO
     if (canvas && canvas.width > 0) {
-      const imgData = canvas.toDataURL('image/jpeg', 0.6);
-      doc.addImage(imgData, 'JPEG', 10, y, 60, 45);
-      y += 50;
+      const imgData = canvas.toDataURL("image/jpeg", 0.85);
+
+      // Tamanho máximo permitido
+      const maxW = 90;
+      const maxH = 65;
+
+      const ratio = canvas.width / canvas.height;
+      let w = maxW;
+      let h = w / ratio;
+
+      if (h > maxH) {
+        h = maxH;
+        w = h * ratio;
+      }
+
+      // Se faltar espaço na página
+      if (y + h > 280) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.addImage(imgData, "JPEG", 10, y, w, h);
+      y += h + 10;
     }
 
-    y += 8;
-    if (y > 270) {
+    if (y > 280) {
       doc.addPage();
       y = 20;
     }
@@ -728,14 +763,9 @@ function gerarPDF() {
 
   const nomeArquivo = `Ronda_${usuarioAtual}_${new Date().toLocaleDateString()}_${new Date().getTime()}.pdf`;
   doc.save(nomeArquivo);
-  alert(`✅ PDF salvo com sucesso como "${nomeArquivo}"!`);
 
-  document.querySelectorAll('.item').forEach(item => {
-    const id = item.getAttribute("data-id");
-    localStorage.removeItem(`foto_${id}`);
-  });
+  alert("✅ PDF gerado com sucesso!");
 }
-
 
 
 function iniciarRonda() {
