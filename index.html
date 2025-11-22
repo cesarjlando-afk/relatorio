@@ -725,11 +725,11 @@ function gerarPDF() {
 
   // 🔹 CABEÇÁRIO CENTRALIZADO
   doc.setFontSize(18);
-  doc.text("Hotel Unique", pageWidth / 2, 15, { align: "center" });
+  doc.text("Birmann 29 (Antônio Alves F. Guedes) - B29", pageWidth / 2, 15, { align: "center" });
 
   doc.setFontSize(12);
   doc.text(
-    "AV. Brigadeiro Luis Antonio, 4700 - Jardim Paulista, São Paulo - SP",
+    "Av. Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP",
     pageWidth / 2, 22, { align: "center" }
   );
 
@@ -752,12 +752,46 @@ function gerarPDF() {
     const hora = item.querySelector('.hora-captura')?.innerText || "";
     const itemId = item.getAttribute('data-id');
 
-    // 🔹 Nome do item centralizado
+    // 🔹 Calcule altura da foto
+    let fotoH = 0;
+    let w = 0;
+    if (canvas && canvas.width > 0) {
+      const isVertical = canvas.height > canvas.width;
+      let maxW, maxH;
+      if (isVertical) {
+        maxW = 80; maxH = 120;
+      } else {
+        maxW = 120; maxH = 80;
+      }
+      const ratio = canvas.width / canvas.height;
+      w = maxW;
+      let h = w / ratio;
+      if (h > maxH) { h = maxH; w = h * ratio; }
+      fotoH = h;
+    }
+
+    // 🔹 Calcule o espaço total (bloco)
+    let blocoH = 6; // nome
+    if (itemId == "16" && localStorage.getItem("justifica_16")) {
+      const split = doc.splitTextToSize("Justificativa: " + localStorage.getItem("justifica_16"), pageWidth * 0.85);
+      blocoH += split.length * 6 + 2;
+    }
+    if (hora) blocoH += 6;
+    blocoH += 8; // descrição
+    if (fotoH > 0) blocoH += fotoH + 10;
+
+    // 🔹 Quebra a página ANTES do bloco se preciso
+    if (y + blocoH > 280) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // 🔹 Dados do item
     doc.setFontSize(12);
     doc.text(`${i + 1}. ${nome}`, pageWidth / 2, y, { align: "center" });
     y += 6;
 
-    // 🔹 Justificativa do item 16 (Casa de Maquinas Zona Baixa), centralizada
+    // Justificativa do item 16
     if (itemId == "16") {
       const justificativa = localStorage.getItem("justifica_16");
       if (justificativa) {
@@ -770,64 +804,32 @@ function gerarPDF() {
       }
     }
 
-    // 🔹 Horário de captura centralizado
+    // Horário de captura
     if (hora) {
       doc.setFontSize(10);
       doc.text(hora, pageWidth / 2, y, { align: "center" });
       y += 6;
     }
 
-    // 🔹 Descrição centralizada
+    // Descrição
     doc.setFontSize(11);
     doc.text(`Descrição: ${descricao}`, pageWidth / 2, y, { align: "center" });
     y += 8;
 
-    // 🔹 Imagem centralizada, auto-ajuste vertical/horizontal
+    // Imagem ajustada, centralizada
     if (canvas && canvas.width > 0) {
       const imgData = canvas.toDataURL("image/jpeg", 0.85);
-
-      // Detecta orientação da imagem
-      const isVertical = canvas.height > canvas.width;
-      let maxW, maxH;
-
-      if (isVertical) {
-        maxW = 80;  // largura menor para vertical
-        maxH = 120; // altura maior para vertical
-      } else {
-        maxW = 120; // largura maior para horizontal
-        maxH = 80;  // altura menor para horizontal
-      }
-
-      const ratio = canvas.width / canvas.height;
-      let w = maxW;
-      let h = w / ratio;
-
-      if (h > maxH) {
-        h = maxH;
-        w = h * ratio;
-      }
-
-      // Centraliza horizontalmente
       const imgX = (pageWidth - w) / 2;
-
-      if (y + h > 280) {
-        doc.addPage();
-        y = 20;
-      }
-
-      doc.addImage(imgData, "JPEG", imgX, y, w, h);
-      y += h + 10;
-    }
-
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
+      doc.addImage(imgData, "JPEG", imgX, y, w, fotoH);
+      y += fotoH + 10;
     }
   });
 
-  // Rodapé centralizado
+  // 🔹 Rodapé centralizado com horários
   doc.setFontSize(10);
-  const rodape = `Relatório gerado em: ${new Date().toLocaleString()}`;
+  const hInicio = localStorage.getItem("horaInicio") || "Não informado";
+  const hTermino = localStorage.getItem("horaTermino") || "Não informado";
+  const rodape = `Ronda iniciada: ${hInicio}  |  Ronda finalizada: ${hTermino}`;
   doc.text(rodape, pageWidth / 2, 290, { align: "center" });
 
   const nomeArquivo = `Ronda_${usuarioAtual}_${new Date().toLocaleDateString()}_${new Date().getTime()}.pdf`;
@@ -840,10 +842,25 @@ function gerarPDF() {
 function iniciarRonda() {
   if (confirm("Tem certeza que deseja iniciar uma nova ronda?")) {
 
+    // Limpa horários anteriores
+    localStorage.removeItem("horaInicio");
+    localStorage.removeItem("horaTermino");
+
+    // Limpa fotos salvas dos itens
+    document.querySelectorAll('.item').forEach(item => {
+      const itemId = item.getAttribute('data-id');
+      localStorage.removeItem(`foto_${itemId}`);
+    });
+
+    // Limpa outros dados (checklist, justificativas)
+    localStorage.removeItem(`checklist_${usuarioAtual}`);
+    localStorage.removeItem("rondaIniciada");
+    localStorage.removeItem("justifica_16");
+
+    // Agora grava o novo início da ronda
     horaInicio = new Date().toLocaleString("pt-BR");
     localStorage.setItem("horaInicio", horaInicio);
 
-    localStorage.removeItem(`checklist_${usuarioAtual}`);
     rondaIniciada = true;
     localStorage.setItem("rondaIniciada", "true");
 
