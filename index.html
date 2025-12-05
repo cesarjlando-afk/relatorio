@@ -412,24 +412,43 @@ function gerarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
 
-  // Cabeçalho
+  // =============================
+  // CABEÇALHO EM NEGRITO
+  // =============================
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text("Relatório Mensal", doc.internal.pageSize.getWidth() / 2, 10, { align: "center" });
+
   doc.setFontSize(10);
   doc.text("Birmann 29 (Antonio Alves F. Guedes) - B29", doc.internal.pageSize.getWidth() / 2, 16, { align: "center" });
   doc.text("Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP", doc.internal.pageSize.getWidth() / 2, 21, { align: "center" });
   doc.text(`Responsável: ${usuarioAtual}`, doc.internal.pageSize.getWidth() / 2, 27, { align: "center" });
 
+  // Volta a fonte ao normal para o resto
+  doc.setFont("helvetica", "normal");
+
   let y = 35;
+
+  // =============================
+  // ITENS + FOTOS
+  // =============================
   categorias.forEach(cat => {
     if (cat === "Informações") return;
+
     const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
+
     if (fotos.length > 0) {
+
+      // Nome do item em NEGRITO
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.text(cat, doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
-      y += 6;
 
-      let linhaAltura = 0; // controla altura máxima da linha
+      // retorna ao normal
+      doc.setFont("helvetica", "normal");
+
+      y += 6;
+      let linhaAltura = 0;
 
       fotos.forEach((f, i) => {
         if (i % 4 === 0 && y > 240) {
@@ -440,77 +459,96 @@ function gerarPDF() {
         const x = 10 + (i % 4) * 45;
         const fotoY = y;
 
-        // Imagem opcional apenas em Atendimento Primeiros Socorros
-        const mostrarImagem = cat !== "Atendimento Primeiros Socorros" || (cat === "Atendimento Primeiros Socorros" && f.img);
+        // Exibe imagem apenas se permitido
+        const mostrarImagem =
+          cat !== "Atendimento Primeiros Socorros" ||
+          (cat === "Atendimento Primeiros Socorros" && f.img);
 
         if (mostrarImagem && f.img) {
           doc.addImage(f.img, "JPEG", x, fotoY, 35, 28);
           doc.setFontSize(8);
-          doc.text(`${f.hora}`, x, fotoY + 31); // hora com espaçamento seguro
+          doc.text(`${f.hora}`, x, fotoY + 31);
         }
 
-        // Descrição sempre obrigatória
         const splitDesc = doc.splitTextToSize(f.desc || "", 35);
         let descY = (mostrarImagem && f.img) ? fotoY + 36 : fotoY;
+
         splitDesc.forEach((line, idx) => {
           doc.text(line, x, descY + (idx * 4));
         });
 
-        // Calcula altura ocupada pelo bloco
-        const alturaBloco = (mostrarImagem && f.img ? 36 : 0) + (splitDesc.length * 4);
-        if (alturaBloco > linhaAltura) {
-          linhaAltura = alturaBloco;
-        }
+        const alturaBloco =
+          (mostrarImagem && f.img ? 36 : 0) +
+          (splitDesc.length * 4);
 
-        // Quando completar 4 fotos, avança Y pela maior altura da linha
+        if (alturaBloco > linhaAltura) linhaAltura = alturaBloco;
+
         if ((i + 1) % 4 === 0) {
           y += Math.max(40, linhaAltura);
           linhaAltura = 0;
         }
       });
 
-      // Se sobrar fotos na última linha, avança também
       if (fotos.length % 4 !== 0) {
         y += Math.max(40, linhaAltura);
       }
     }
   });
 
-  // Conclusão / Informações
+  // =============================
+  // CONCLUSÃO / INFORMAÇÕES
+  // =============================
   const info = document.getElementById("desc_Informações")?.value.trim() || "";
+
   if (info) {
     if (y > 250) { doc.addPage(); y = 20; }
+
+    // Título da conclusão em negrito
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text("Conclusão / Informações:", doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
+
+    doc.setFont("helvetica", "normal");
+
     y += 8;
+
     doc.setFontSize(10);
     const splitText = doc.splitTextToSize(info, 180);
     const pageWidth = doc.internal.pageSize.getWidth();
+
     splitText.forEach((line, index) => {
       doc.text(line, pageWidth / 2, y + index * 6, { align: "center" });
     });
-    y += splitText.length * 6 + 6; // margem extra no final
+
+    y += splitText.length * 6 + 6;
   }
 
-  // Rodapé
+  // =============================
+  // RODAPÉ
+  // =============================
   if (y > 260) { doc.addPage(); y = 20; }
+
   const inicio = localStorage.getItem("inicioRelatorio") || "Não registrado";
   const termino = new Date().toLocaleString();
+
   doc.setFontSize(10);
   doc.text(`Início do relatório: ${inicio}`, 10, y);
   doc.text(`Término do relatório: ${termino}`, 10, y + 6);
 
-  // Salvar
+  // =============================
+  // SALVAR
+  // =============================
   const nome = `Relatorio_${new Date().toLocaleDateString()}_${new Date().getTime()}.pdf`;
   doc.save(nome);
+
   alert("✅ PDF gerado e salvo com sucesso!");
 
-  // Limpeza
   categorias.forEach(cat => localStorage.removeItem(`fotos_${cat}`));
   localStorage.removeItem("inicioRelatorio");
   document.getElementById("desc_Informações").value = "";
   carregarCategorias();
 }
+
 
 function atualizarDescricao(cat, idx, desc) {
   const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
