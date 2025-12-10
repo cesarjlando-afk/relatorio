@@ -182,9 +182,16 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => console.log('Service Worker registrado com sucesso:', reg))
+      .catch(err => console.error('Falha ao registrar Service Worker:', err));
+  }
+  
 const categorias = [
   "Acompanhamentos Preventivos",
-  "Rondas e Vistorias Técnicas",
+  "Vistorias Técnicas",
   "Check-list",
   "Pendências",
   "Atendimento Primeiros Socorros",
@@ -195,11 +202,6 @@ let usuarioAtual = "";
 let streamAtual = null;
 let categoriaAtiva = null;
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js')
-    .then(reg => console.log('Service Worker registrado!', reg))
-    .catch(err => console.log('Service Worker ERRO:', err));
-}
 
 function login() {
   const user = document.getElementById("usuario").value.trim();
@@ -277,7 +279,11 @@ function abrirCamera(cat) {
 
 
 function capturarFoto(cat) {
-  if (!streamAtual) { alert("Abra a câmera primeiro!"); return; }
+  if (!streamAtual) { 
+    alert("Abra a câmera primeiro!"); 
+    return; 
+  }
+
   const container = document.getElementById(`camera_${cat}`);
   const video = container.querySelector("video");
 
@@ -286,13 +292,32 @@ function capturarFoto(cat) {
   canvas.height = video.videoHeight || 480;
   canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  // Reduza de 0.8 para 0.5 ou menos
+  // Gera a imagem comprimida
   const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
-  const hora = new Date().toLocaleString();
-  const fotoObj = { img: dataUrl, desc: "", hora };
+
+  // Data/hora automática (registro original)
+  const agora = new Date();
+  const hora = agora.toLocaleString(); // o que você já usava
+
+  // Valor padrão para <input type="datetime-local">
+  // Formato: "YYYY-MM-DDTHH:MM"
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, "0");
+  const dia = String(agora.getDate()).padStart(2, "0");
+  const horas = String(agora.getHours()).padStart(2, "0");
+  const minutos = String(agora.getMinutes()).padStart(2, "0");
+  const dataHoraCustom = `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+
+  const fotoObj = { 
+    img: dataUrl, 
+    desc: "", 
+    hora,            // registro “fixo” (quando a foto foi tirada)
+    dataHoraCustom   // campo que o usuário poderá editar
+  };
 
   const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
   fotos.push(fotoObj);
+
   try {
     localStorage.setItem(`fotos_${cat}`, JSON.stringify(fotos));
     renderizarFotos(cat);
@@ -300,6 +325,7 @@ function capturarFoto(cat) {
     alert('Espaço insuficiente no navegador! Apague algumas fotos ou use imagens menores.');
   }
 
+  // Fecha a câmera
   container.style.display = "none";
   streamAtual.getTracks().forEach(track => track.stop());
   streamAtual = null;
@@ -310,23 +336,22 @@ function abrirGaleria(cat) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
-  input.multiple = false; // permite adicionar uma por vez, ajustável para true se preferir multi
+  input.multiple = false; // uma por vez
+
   input.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = ev => {
-      // Otimiza imagem da galeria usando canvas e compressão
       const img = new Image();
       img.onload = () => {
-        // Define tamanho alvo (ex: largura máx 800px)
+        // Redimensiona a imagem (como você já fazia)
         const maxW = 800;
         const maxH = 600;
         let width = img.width;
         let height = img.height;
 
-        // Redimensiona proporcionalmente
         if (width > maxW) {
           height = Math.round(height * (maxW / width));
           width = maxW;
@@ -335,15 +360,33 @@ function abrirGaleria(cat) {
           width = Math.round(width * (maxH / height));
           height = maxH;
         }
+
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-        // Compressão na hora de salvar
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);  // qualidade reduzida para economizar espaço
-        const hora = new Date().toLocaleString();
-        const fotoObj = { img: dataUrl, desc: "", hora };
+        // Gera a imagem comprimida
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+
+        // Data/hora automática (momento em que a imagem foi adicionada ao relatório)
+        const agora = new Date();
+        const hora = agora.toLocaleString();
+
+        // Valor padrão para <input type="datetime-local">
+        const ano = agora.getFullYear();
+        const mes = String(agora.getMonth() + 1).padStart(2, "0");
+        const dia = String(agora.getDate()).padStart(2, "0");
+        const horas = String(agora.getHours()).padStart(2, "0");
+        const minutos = String(agora.getMinutes()).padStart(2, "0");
+        const dataHoraCustom = `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+
+        const fotoObj = { 
+          img: dataUrl, 
+          desc: "", 
+          hora,            // registro “fixo”
+          dataHoraCustom   // campo editável
+        };
 
         const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
         fotos.push(fotoObj);
@@ -359,6 +402,7 @@ function abrirGaleria(cat) {
     };
     reader.readAsDataURL(file);
   };
+
   input.click();
 }
 
@@ -375,16 +419,47 @@ function salvarDescricao(cat) {
 
 function renderizarFotos(cat) {
   const fotosDiv = document.getElementById(`fotos_${cat}`);
+  if (!fotosDiv) return;
+
   fotosDiv.innerHTML = "";
   const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
+
   fotos.forEach((f, idx) => {
     const div = document.createElement("div");
     div.className = "foto-item";
+
+    // garante um valor válido para o input datetime-local
+    let valorDataHora = f.dataHoraCustom;
+    if (!valorDataHora) {
+      const agora = new Date();
+      const ano = agora.getFullYear();
+      const mes = String(agora.getMonth() + 1).padStart(2, "0");
+      const dia = String(agora.getDate()).padStart(2, "0");
+      const horas = String(agora.getHours()).padStart(2, "0");
+      const minutos = String(agora.getMinutes()).padStart(2, "0");
+      valorDataHora = `${ano}-${mes}-${dia}T${horas}:${minutos}`;
+    }
+
     div.innerHTML = `
       <img src="${f.img}">
-      <p>${f.hora}</p>
-      <textarea placeholder="Descrição..." onblur="atualizarDescricao('${cat}', ${idx}, this.value)">${f.desc || ""}</textarea>
+      <p>Registrado: ${f.hora || ""}</p>
+
+      <label style="font-size: 11px; display:block; margin-top:2px;">
+        Data/Hora da imagem:
+      </label>
+      <input 
+        type="datetime-local"
+        value="${valorDataHora}"
+        onchange="atualizarDataHora('${cat}', ${idx}, this.value)"
+        style="width: 100%; font-size: 11px; margin-bottom: 4px;"
+      >
+
+      <textarea 
+        placeholder="Descrição..." 
+        onblur="atualizarDescricao('${cat}', ${idx}, this.value)"
+      >${f.desc || ""}</textarea>
     `;
+
     fotosDiv.appendChild(div);
   });
 }
@@ -412,9 +487,7 @@ function gerarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF("p", "mm", "a4");
 
-  // =============================
-  // CABEÇALHO EM NEGRITO
-  // =============================
+  // CABEÇALHO
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text("Relatório Mensal", doc.internal.pageSize.getWidth() / 2, 10, { align: "center" });
@@ -424,27 +497,19 @@ function gerarPDF() {
   doc.text("Brig. Faria Lima, 3729 - Itaim Bibi, São Paulo - SP", doc.internal.pageSize.getWidth() / 2, 21, { align: "center" });
   doc.text(`Responsável: ${usuarioAtual}`, doc.internal.pageSize.getWidth() / 2, 27, { align: "center" });
 
-  // Volta a fonte ao normal para o resto
   doc.setFont("helvetica", "normal");
-
   let y = 35;
 
-  // =============================
   // ITENS + FOTOS
-  // =============================
   categorias.forEach(cat => {
     if (cat === "Informações") return;
 
     const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
 
     if (fotos.length > 0) {
-
-      // Nome do item em NEGRITO
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.text(cat, doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
-
-      // retorna ao normal
       doc.setFont("helvetica", "normal");
 
       y += 6;
@@ -459,15 +524,20 @@ function gerarPDF() {
         const x = 10 + (i % 4) * 45;
         const fotoY = y;
 
-        // Exibe imagem apenas se permitido
         const mostrarImagem =
           cat !== "Atendimento Primeiros Socorros" ||
           (cat === "Atendimento Primeiros Socorros" && f.img);
 
         if (mostrarImagem && f.img) {
           doc.addImage(f.img, "JPEG", x, fotoY, 35, 28);
+
           doc.setFontSize(8);
-          doc.text(`${f.hora}`, x, fotoY + 31);
+          let textoData = f.hora || "";
+          if (f.dataHoraCustom) {
+            const d = new Date(f.dataHoraCustom + ":00");
+            textoData = d.toLocaleString("pt-BR");
+          }
+          doc.text(textoData, x, fotoY + 31);
         }
 
         const splitDesc = doc.splitTextToSize(f.desc || "", 35);
@@ -495,21 +565,17 @@ function gerarPDF() {
     }
   });
 
-  // =============================
-  // CONCLUSÃO / INFORMAÇÕES
-  // =============================
+  // CONCLUSÃO / INFORMAÇÕES (igual ao seu código)
   const info = document.getElementById("desc_Informações")?.value.trim() || "";
 
   if (info) {
     if (y > 250) { doc.addPage(); y = 20; }
 
-    // Título da conclusão em negrito
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.text("Conclusão / Informações:", doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
 
     doc.setFont("helvetica", "normal");
-
     y += 8;
 
     doc.setFontSize(10);
@@ -523,29 +589,26 @@ function gerarPDF() {
     y += splitText.length * 6 + 6;
   }
 
-  // =============================
-  // RODAPÉ
-  // =============================
+  // RODAPÉ (igual)
   if (y > 260) { doc.addPage(); y = 20; }
 
   const inicio = localStorage.getItem("inicioRelatorio") || "Não registrado";
-  const termino = new Date().toLocaleString();
+  const termino = new Date().toLocaleString("pt-BR");
 
   doc.setFontSize(10);
   doc.text(`Início do relatório: ${inicio}`, 10, y);
   doc.text(`Término do relatório: ${termino}`, 10, y + 6);
 
-  // =============================
   // SALVAR
-  // =============================
-  const nome = `Relatorio_${new Date().toLocaleDateString()}_${new Date().getTime()}.pdf`;
+  const nome = `Relatorio_${new Date().toLocaleDateString("pt-BR")}_${new Date().getTime()}.pdf`;
   doc.save(nome);
 
   alert("✅ PDF gerado e salvo com sucesso!");
 
   categorias.forEach(cat => localStorage.removeItem(`fotos_${cat}`));
   localStorage.removeItem("inicioRelatorio");
-  document.getElementById("desc_Informações").value = "";
+  const infoEl = document.getElementById("desc_Informações");
+  if (infoEl) infoEl.value = "";
   carregarCategorias();
 }
 
@@ -553,6 +616,12 @@ function gerarPDF() {
 function atualizarDescricao(cat, idx, desc) {
   const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
   fotos[idx].desc = desc.trim();
+  localStorage.setItem(`fotos_${cat}`, JSON.stringify(fotos));
+}
+
+function atualizarDataHora(cat, idx, valor) {
+  const fotos = JSON.parse(localStorage.getItem(`fotos_${cat}`) || "[]");
+  fotos[idx].dataHoraCustom = valor;
   localStorage.setItem(`fotos_${cat}`, JSON.stringify(fotos));
 }
 </script>

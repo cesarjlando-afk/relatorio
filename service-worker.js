@@ -5,20 +5,16 @@ const urlsToCache = [
   '/style.css',
   '/manifest.json',
   '/icon-192.png',
-  '/service-worker.js',
-  // Inclua outros arquivos usados (lib jsPDF, outras imagens, etc)
+  // Remover '/service-worker.js'
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
 ];
 
-// Instalar e cachear arquivos
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
 });
 
-// Limpar cache antigo ao ativar nova versão
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -27,11 +23,10 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Interceptar requests para servir o cache offline
 self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request)
-    )
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
 });
